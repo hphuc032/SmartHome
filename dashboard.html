@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Home Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+
+  <!-- ── CSS bổ sung cho phần Auth trên header ── -->
+  <style>
+    /* Vùng hiển thị user + nút logout, thêm vào header-right */
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .user-email {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      letter-spacing: 0.06em;
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .btn-logout {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: rgba(255,23,68,0.08);
+      border: 1px solid rgba(255,23,68,0.3);
+      border-radius: 20px;
+      color: #ff1744;
+      font-family: var(--font-display);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn-logout:hover {
+      background: rgba(255,23,68,0.18);
+      box-shadow: 0 0 12px rgba(255,23,68,0.15);
+      transform: translateY(-1px);
+    }
+
+    .btn-logout:active {
+      transform: translateY(0);
+    }
+
+    /* Ẩn dashboard content cho đến khi auth được xác nhận */
+    /* (tránh flash nội dung trước khi kiểm tra auth xong) */
+    body {
+      visibility: hidden;
+    }
+    body.auth-ready {
+      visibility: visible;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ════════════════════════════════
+       HEADER — Đã bổ sung user info + logout
+  ════════════════════════════════ -->
+  <header class="site-header">
+    <div class="header-left">
+      <div class="logo-icon">⌂</div>
+      <div class="header-title">
+        <span class="title-main">SMART HOME</span>
+        <span class="title-sub">CONTROL DASHBOARD</span>
+      </div>
+    </div>
+    <div class="header-right">
+
+      <!-- ── MỚI: Vùng user + logout ── -->
+      <div class="user-info">
+        <span class="user-email" id="userEmail">--</span>
+        <button class="btn-logout" id="btnLogout" onclick="handleLogout()">
+          ⏻ LOGOUT
+        </button>
+      </div>
+
+      <!-- Các phần cũ giữ nguyên -->
+      <div class="status-badge" id="connectionBadge">
+        <span class="badge-dot"></span>
+        <span class="badge-text">ONLINE</span>
+      </div>
+      <div class="last-updated">
+        <span class="update-label">LAST UPDATE</span>
+        <span class="update-time" id="lastUpdated">--:--:--</span>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ════════════════════════════════
+       SYSTEM ALERT BANNER — không thay đổi
+  ════════════════════════════════ -->
+  <div class="alert-banner" id="alertBanner">
+    <span class="alert-icon" id="alertIcon">✔</span>
+    <span class="alert-text" id="alertText">SYSTEM SAFE — ALL SENSORS NORMAL</span>
+  </div>
+
+  <!-- ════════════════════════════════
+       MAIN DASHBOARD GRID — không thay đổi
+  ════════════════════════════════ -->
+  <main class="dashboard-grid">
+
+    <!-- ── TEMPERATURE CARD ── -->
+    <div class="card card--temperature" id="cardTemperature">
+      <div class="card-header">
+        <div class="card-icon">🌡</div>
+        <div class="card-label">TEMPERATURE</div>
+      </div>
+      <div class="card-value" id="tempValue">--°C</div>
+      <div class="card-sub" id="tempSub">Reading sensor...</div>
+      <div class="card-ring">
+        <svg viewBox="0 0 80 80" class="ring-svg">
+          <circle cx="40" cy="40" r="34" class="ring-bg"/>
+          <circle cx="40" cy="40" r="34" class="ring-fill" id="tempRing"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- ── DOOR CARD ── -->
+    <div class="card card--door" id="cardDoor">
+      <div class="card-header">
+        <div class="card-icon" id="doorIcon">🚪</div>
+        <div class="card-label">SMART DOOR</div>
+      </div>
+      <div class="card-status-pill" id="doorStatus">-- --</div>
+      <div class="card-controls">
+        <button class="btn btn--green" onclick="sendDoorCommand('OPEN')">
+          <span>🔓</span> OPEN
+        </button>
+        <button class="btn btn--red" onclick="sendDoorCommand('CLOSE')">
+          <span>🔒</span> CLOSE
+        </button>
+      </div>
+    </div>
+
+    <!-- ── LIGHT CARD ── -->
+    <div class="card card--light" id="cardLight">
+      <div class="card-header">
+        <div class="card-icon" id="lightIcon">💡</div>
+        <div class="card-label">SMART LIGHT</div>
+      </div>
+      <div class="card-status-pill" id="lightStatus">-- --</div>
+      <div class="card-mode" id="lightMode">MODE: --</div>
+      <div class="card-controls">
+        <button class="btn btn--green" onclick="sendLightCommand(true)">ON</button>
+        <button class="btn btn--dimmed" onclick="sendLightCommand(false)">OFF</button>
+      </div>
+      <div class="card-controls card-controls--mode">
+        <button class="btn btn--orange" onclick="sendLightModeCommand('AUTO')">AUTO</button>
+        <button class="btn btn--blue" onclick="sendLightModeCommand('MANUAL')">MANUAL</button>
+      </div>
+    </div>
+
+    <!-- ── FAN CARD ── -->
+    <div class="card card--fan" id="cardFan">
+      <div class="card-header">
+        <div class="card-icon" id="fanIcon">🌀</div>
+        <div class="card-label">SMART FAN</div>
+      </div>
+      <div class="card-status-pill" id="fanStatus">-- --</div>
+      <div class="card-mode" id="fanMode">MODE: --</div>
+      <div class="card-controls">
+        <button class="btn btn--green" onclick="sendFanCommand(true)">ON</button>
+        <button class="btn btn--dimmed" onclick="sendFanCommand(false)">OFF</button>
+      </div>
+      <div class="card-controls card-controls--mode">
+        <button class="btn btn--orange" onclick="sendFanModeCommand('AUTO')">AUTO</button>
+        <button class="btn btn--blue" onclick="sendFanModeCommand('MANUAL')">MANUAL</button>
+      </div>
+    </div>
+
+    <!-- ── CLOTHES RACK CARD ── -->
+    <div class="card card--rack" id="cardRack">
+      <div class="card-header">
+        <div class="card-icon" id="rackIcon">👕</div>
+        <div class="card-label">CLOTHES RACK</div>
+      </div>
+      <div class="card-status-pill" id="rackStatus">-- --</div>
+      <div class="rain-indicator" id="rainIndicator">
+        <span id="rainIcon">🌤</span>
+        <span id="rainText">DRY</span>
+      </div>
+      <div class="card-controls">
+        <button class="btn btn--blue" onclick="sendRackCommand('IN')">
+          <span>⬅</span> PULL IN
+        </button>
+        <button class="btn btn--orange" onclick="sendRackCommand('OUT')">
+          PULL OUT <span>➡</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── GAS ALERT CARD ── -->
+    <div class="card card--gas" id="cardGas">
+      <div class="card-header">
+        <div class="card-icon" id="gasIcon">⚠</div>
+        <div class="card-label">GAS SENSOR</div>
+      </div>
+      <div class="card-status-pill" id="gasStatus">-- CHECKING --</div>
+      <div class="gas-warning" id="gasWarning" style="display:none;">
+        <div class="gas-warning-text">⚠ GAS LEAK DETECTED ⚠</div>
+        <div class="gas-warning-sub">VENTILATE IMMEDIATELY</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ════════════════════════════════
+       FOOTER — không thay đổi
+  ════════════════════════════════ -->
+  <footer class="site-footer">
+    <span>Smart Home IoT Project</span>
+    <span class="footer-sep">·</span>
+    <span>ESP32 + Firebase Realtime DB</span>
+    <span class="footer-sep">·</span>
+    <span id="footerYear"></span>
+  </footer>
+
+  <!-- ════════════════════════════════
+       FIREBASE SDKs
+       Thứ tự quan trọng: app → auth → database → config → auth.js → script.js
+  ════════════════════════════════ -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <!-- Config dùng chung (thay thế firebaseConfig cũ ở đầu script.js) -->
+  <script src="firebase-config.js"></script>
+
+  <!-- Auth: kiểm tra phiên, login/logout -->
+  <script src="auth.js"></script>
+
+  <!-- Dashboard logic: Realtime Database, render, control -->
+  <script src="script.js"></script>
+
+</body>
+</html>

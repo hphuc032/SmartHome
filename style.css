@@ -1,0 +1,637 @@
+/* ═══════════════════════════════════════════════════════
+   SMART HOME DASHBOARD — style.css
+   Theme: Dark Sci-Fi Control Panel
+   Fonts: Rajdhani (headings), Exo 2 (body), Share Tech Mono (values)
+═══════════════════════════════════════════════════════ */
+
+/* ── CSS VARIABLES ── */
+:root {
+  --bg-deep:        #080c12;
+  --bg-panel:       #0d1320;
+  --bg-card:        #101828;
+  --bg-card-hover:  #141f30;
+  --border:         #1e2d45;
+  --border-glow:    #2a4a7f;
+
+  --accent-blue:    #1a8cff;
+  --accent-cyan:    #00d4ff;
+  --accent-green:   #00e676;
+  --accent-orange:  #ff9100;
+  --accent-red:     #ff1744;
+  --accent-yellow:  #ffd740;
+
+  --text-primary:   #e8f0fe;
+  --text-secondary: #8baac8;
+  --text-muted:     #4a6480;
+
+  --safe-color:     #00e676;
+  --danger-color:   #ff1744;
+  --warn-color:     #ff9100;
+  --info-color:     #1a8cff;
+
+  --card-radius:    14px;
+  --shadow:         0 4px 24px rgba(0,0,0,0.45);
+  --shadow-glow:    0 0 20px rgba(26,140,255,0.15);
+
+  --font-display:   'Rajdhani', sans-serif;
+  --font-body:      'Exo 2', sans-serif;
+  --font-mono:      'Share Tech Mono', monospace;
+}
+
+/* ── RESET & BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; }
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg-deep);
+  color: var(--text-primary);
+  min-height: 100vh;
+  /* Subtle grid texture in background */
+  background-image:
+    linear-gradient(rgba(26,140,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(26,140,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ══════════════════════════════════
+   HEADER
+══════════════════════════════════ */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 32px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 20px rgba(0,0,0,0.5);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo-icon {
+  font-size: 2rem;
+  color: var(--accent-cyan);
+  text-shadow: 0 0 12px var(--accent-cyan);
+  line-height: 1;
+}
+
+.header-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.title-main {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.title-sub {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  letter-spacing: 0.2em;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+/* Online/Offline badge */
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(0,230,118,0.08);
+  border: 1px solid rgba(0,230,118,0.3);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: var(--safe-color);
+  transition: all 0.4s;
+}
+
+.status-badge.offline {
+  background: rgba(255,23,68,0.08);
+  border-color: rgba(255,23,68,0.3);
+  color: var(--danger-color);
+}
+
+.badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--safe-color);
+  box-shadow: 0 0 8px var(--safe-color);
+  animation: pulse 2s infinite;
+}
+
+.status-badge.offline .badge-dot {
+  background: var(--danger-color);
+  box-shadow: 0 0 8px var(--danger-color);
+  animation: none;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+
+.last-updated {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.update-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  letter-spacing: 0.15em;
+}
+
+.update-time {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--accent-cyan);
+}
+
+/* ══════════════════════════════════
+   ALERT BANNER
+══════════════════════════════════ */
+.alert-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: rgba(0,230,118,0.07);
+  border-bottom: 1px solid rgba(0,230,118,0.2);
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--safe-color);
+  transition: all 0.5s ease;
+}
+
+.alert-banner.danger {
+  background: rgba(255,23,68,0.12);
+  border-bottom-color: rgba(255,23,68,0.4);
+  color: var(--danger-color);
+  animation: dangerFlash 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes dangerFlash {
+  from { background: rgba(255,23,68,0.08); }
+  to   { background: rgba(255,23,68,0.20); }
+}
+
+.alert-icon {
+  font-size: 1.1rem;
+}
+
+/* ══════════════════════════════════
+   DASHBOARD GRID
+══════════════════════════════════ */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  padding: 28px 28px 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ══════════════════════════════════
+   BASE CARD
+══════════════════════════════════ */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  padding: 22px 20px;
+  box-shadow: var(--shadow);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.4s;
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
+  opacity: 0.5;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow), var(--shadow-glow);
+  border-color: var(--border-glow);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.card-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.card-label {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+/* ── Status Pill ── */
+.card-status-pill {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  background: rgba(138,170,200,0.1);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  transition: all 0.4s;
+}
+
+.card-status-pill.status-on,
+.card-status-pill.status-open,
+.card-status-pill.status-safe {
+  background: rgba(0,230,118,0.12);
+  border-color: rgba(0,230,118,0.35);
+  color: var(--safe-color);
+  box-shadow: 0 0 10px rgba(0,230,118,0.12);
+}
+
+.card-status-pill.status-off,
+.card-status-pill.status-closed {
+  background: rgba(74,100,128,0.15);
+  border-color: rgba(74,100,128,0.3);
+  color: var(--text-muted);
+}
+
+.card-status-pill.status-danger {
+  background: rgba(255,23,68,0.15);
+  border-color: rgba(255,23,68,0.4);
+  color: var(--danger-color);
+  box-shadow: 0 0 12px rgba(255,23,68,0.2);
+  animation: dangerFlash 1s infinite alternate;
+}
+
+/* ── Mode Label ── */
+.card-mode {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  color: var(--accent-orange);
+  margin-bottom: 12px;
+}
+
+/* ── Controls Layout ── */
+.card-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.card-controls--mode {
+  margin-top: 8px;
+}
+
+/* ══════════════════════════════════
+   BUTTONS
+══════════════════════════════════ */
+.btn {
+  flex: 1;
+  min-width: 80px;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 0; height: 0;
+  background: rgba(255,255,255,0.15);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s ease, height 0.4s ease, opacity 0.4s;
+  opacity: 0;
+}
+
+.btn:active::after {
+  width: 200px;
+  height: 200px;
+  opacity: 0;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.15);
+}
+
+.btn:active {
+  transform: translateY(0px) scale(0.97);
+}
+
+.btn--green {
+  background: rgba(0,230,118,0.15);
+  border: 1px solid rgba(0,230,118,0.4);
+  color: var(--safe-color);
+  box-shadow: 0 2px 10px rgba(0,230,118,0.1);
+}
+
+.btn--green:hover {
+  background: rgba(0,230,118,0.25);
+  box-shadow: 0 4px 16px rgba(0,230,118,0.2);
+}
+
+.btn--red {
+  background: rgba(255,23,68,0.12);
+  border: 1px solid rgba(255,23,68,0.35);
+  color: var(--danger-color);
+  box-shadow: 0 2px 10px rgba(255,23,68,0.08);
+}
+
+.btn--red:hover {
+  background: rgba(255,23,68,0.22);
+  box-shadow: 0 4px 16px rgba(255,23,68,0.18);
+}
+
+.btn--orange {
+  background: rgba(255,145,0,0.12);
+  border: 1px solid rgba(255,145,0,0.35);
+  color: var(--accent-orange);
+}
+
+.btn--orange:hover {
+  background: rgba(255,145,0,0.22);
+}
+
+.btn--blue {
+  background: rgba(26,140,255,0.12);
+  border: 1px solid rgba(26,140,255,0.35);
+  color: var(--accent-blue);
+}
+
+.btn--blue:hover {
+  background: rgba(26,140,255,0.22);
+}
+
+.btn--dimmed {
+  background: rgba(74,100,128,0.12);
+  border: 1px solid rgba(74,100,128,0.25);
+  color: var(--text-muted);
+}
+
+.btn--dimmed:hover {
+  background: rgba(74,100,128,0.22);
+  color: var(--text-secondary);
+}
+
+/* ══════════════════════════════════
+   TEMPERATURE CARD (special)
+══════════════════════════════════ */
+.card--temperature {
+  position: relative;
+}
+
+.card--temperature::before {
+  background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+}
+
+.card-value {
+  font-family: var(--font-mono);
+  font-size: 2.8rem;
+  font-weight: 400;
+  color: var(--accent-cyan);
+  text-shadow: 0 0 20px rgba(0,212,255,0.5);
+  margin-bottom: 4px;
+  line-height: 1;
+}
+
+.card-sub {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+/* SVG Ring */
+.card-ring {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  width: 64px;
+  height: 64px;
+  opacity: 0.35;
+}
+
+.ring-svg { transform: rotate(-90deg); }
+
+.ring-bg {
+  fill: none;
+  stroke: rgba(255,255,255,0.07);
+  stroke-width: 5;
+}
+
+.ring-fill {
+  fill: none;
+  stroke: var(--accent-cyan);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 213.6;
+  stroke-dashoffset: 213.6;
+  transition: stroke-dashoffset 1s ease, stroke 0.5s;
+}
+
+/* ══════════════════════════════════
+   RAIN INDICATOR
+══════════════════════════════════ */
+.rain-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  background: rgba(26,140,255,0.08);
+  border: 1px solid rgba(26,140,255,0.2);
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+  transition: all 0.4s;
+}
+
+.rain-indicator.raining {
+  background: rgba(0,212,255,0.1);
+  border-color: rgba(0,212,255,0.3);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(0,212,255,0.1);
+}
+
+/* ══════════════════════════════════
+   GAS WARNING CARD
+══════════════════════════════════ */
+.card--gas {
+  transition: all 0.4s;
+}
+
+.card--gas.gas-danger {
+  background: rgba(255,23,68,0.08);
+  border-color: rgba(255,23,68,0.5);
+  box-shadow: var(--shadow), 0 0 30px rgba(255,23,68,0.2);
+}
+
+.card--gas.gas-danger::before {
+  background: linear-gradient(90deg, transparent, var(--danger-color), transparent);
+  opacity: 1;
+}
+
+.gas-warning {
+  margin-top: 10px;
+  padding: 12px 16px;
+  background: rgba(255,23,68,0.12);
+  border: 1px solid rgba(255,23,68,0.4);
+  border-radius: 8px;
+  text-align: center;
+  animation: dangerFlash 0.9s infinite alternate;
+}
+
+.gas-warning-text {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--danger-color);
+  margin-bottom: 4px;
+}
+
+.gas-warning-sub {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: rgba(255,23,68,0.7);
+  letter-spacing: 0.15em;
+}
+
+/* ══════════════════════════════════
+   FOOTER
+══════════════════════════════════ */
+.site-footer {
+  text-align: center;
+  padding: 20px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  margin-top: 8px;
+}
+
+.footer-sep {
+  margin: 0 10px;
+  opacity: 0.4;
+}
+
+/* ══════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════ */
+@media (max-width: 768px) {
+  .site-header {
+    padding: 14px 16px;
+  }
+
+  .title-main {
+    font-size: 1.2rem;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .card-value {
+    font-size: 2.2rem;
+  }
+}
+
+@media (max-width: 500px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .header-right {
+    gap: 10px;
+  }
+
+  .last-updated {
+    display: none;
+  }
+}
+
+/* ── Spin animation for fan icon ── */
+.fan-spinning {
+  display: inline-block;
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── Glow for door icon when open ── */
+.door-open-glow {
+  filter: drop-shadow(0 0 6px var(--safe-color));
+}
