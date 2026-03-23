@@ -72,11 +72,12 @@ function renderFanStatus(isOn, mode) {
   modeEl.textContent = `MODE: ${mode || "--"}`;
 }
 
-function renderRackStatus(rackValue, isRaining) {
+function renderRackStatus(rackValue, isRaining, mode) {
   const pill     = document.getElementById("rackStatus");
   const rainEl   = document.getElementById("rainIndicator");
   const rainIcon = document.getElementById("rainIcon");
   const rainText = document.getElementById("rainText");
+  const modeEl   = document.getElementById("rackMode");
 
   if (rackValue === "IN") {
     pill.textContent = "⬅ RACK IN";
@@ -95,6 +96,9 @@ function renderRackStatus(rackValue, isRaining) {
     rainIcon.textContent = "🌤";
     rainText.textContent = "DRY";
   }
+
+  // Hiển thị mode AUTO / MANUAL
+  if (modeEl) modeEl.textContent = `MODE: ${mode || "--"}`;
 }
 
 function renderGasStatus(isDanger) {
@@ -169,7 +173,7 @@ function listenToFirebase() {
     renderDoorStatus(data.door);
     renderLightStatus(data.light, data.lightMode);
     renderFanStatus(data.fan, data.fanMode);
-    renderRackStatus(data.rack, data.rain);
+    renderRackStatus(data.rack, data.rain, data.rackMode);
     renderGasStatus(data.gas);
     renderTemperature(data.temperature);
     updateTimestamp();
@@ -236,6 +240,12 @@ function sendRackCommand(command) {
   controlRef.update({ rackCommand: command })
     .then(() => console.log("Lệnh giàn phơi đã gửi:", command))
     .catch(err => console.error("Lỗi gửi lệnh giàn phơi:", err));
+}
+
+function sendRackModeCommand(mode) {
+  controlRef.update({ rackModeCommand: mode })
+    .then(() => console.log("Lệnh mode giàn phơi đã gửi:", mode))
+    .catch(err => console.error("Lỗi gửi lệnh mode giàn phơi:", err));
 }
 
 function bindButtons() {

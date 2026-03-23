@@ -192,6 +192,7 @@
         <div class="card-label">CLOTHES RACK</div>
       </div>
       <div class="card-status-pill" id="rackStatus">-- --</div>
+      <div class="card-mode" id="rackMode">MODE: --</div>
       <div class="rain-indicator" id="rainIndicator">
         <span id="rainIcon">🌤</span>
         <span id="rainText">DRY</span>
@@ -203,6 +204,10 @@
         <button class="btn btn--orange" onclick="sendRackCommand('OUT')">
           PULL OUT <span>➡</span>
         </button>
+      </div>
+      <div class="card-controls card-controls--mode">
+        <button class="btn btn--orange" onclick="sendRackModeCommand('AUTO')">AUTO</button>
+        <button class="btn btn--blue" onclick="sendRackModeCommand('MANUAL')">MANUAL</button>
       </div>
     </div>
 
