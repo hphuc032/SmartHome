@@ -142,38 +142,76 @@ function connectCamera() {
     return;
   }
 
-  if (window.location.protocol === "https:" && normalizedHost.startsWith("http://")) {
+  if (
+    window.location.protocol === "https:" &&
+    normalizedHost.startsWith("http://")
+  ) {
     setCameraState(
       "ERROR",
-      "This HTTPS dashboard cannot access an HTTP camera because browsers block mixed content. Use an HTTPS camera endpoint or serve the dashboard over HTTP on the same LAN.",
+      "Camera HTTP cannot be opened from HTTPS dashboard. Use the local HTTP dashboard."
     );
     return;
   }
 
   disableGesture();
   clearCameraConnectTimer();
+
   cameraConnectAttempt += 1;
-  const attempt = cameraConnectAttempt;
 
   cameraHost = normalizedHost;
+
+  const cameraUrl = new URL(cameraHost);
+
+  const streamUrl =
+    `${cameraUrl.protocol}//${cameraUrl.hostname}:81/stream`;
+
   captureUrl = `${cameraHost}/capture`;
+
   cameraConnected = false;
   cameraConnecting = true;
+
   hostInput.value = cameraHost;
+
   placeholder.hidden = false;
-  placeholder.querySelector("strong").textContent = "CONNECTING TO CAMERA";
-  placeholder.querySelector("small").textContent = `${cameraHost}/stream`;
-  setCameraState("CONNECTING", "Waiting for the first MJPEG frame...");
+  placeholder.querySelector("strong").textContent =
+    "CONNECTING TO CAMERA";
+  placeholder.querySelector("small").textContent =
+    streamUrl;
+
+  setCameraState(
+    "CONNECTING",
+    "Opening ESP32 MJPEG stream..."
+  );
+
   setCameraButtons();
 
-  preview.src = `${cameraHost}/stream?t=${Date.now()}`;
-  cameraConnectTimer = window.setTimeout(() => {
-    if (attempt !== cameraConnectAttempt || cameraConnected) return;
+  console.log("[CAMERA] host =", cameraHost);
+  console.log("[CAMERA] stream =", streamUrl);
+  console.log("[CAMERA] capture =", captureUrl);
+
+  preview.removeAttribute("src");
+
+  preview.src = `${streamUrl}?t=${Date.now()}`;
+
+  window.setTimeout(() => {
+    if (!cameraHost) return;
+
+    cameraConnected = true;
     cameraConnecting = false;
-    setCameraState("ERROR", "Camera stream timed out. Check the host and ESP32 camera server.");
-    placeholder.querySelector("strong").textContent = "CAMERA CONNECTION FAILED";
+
+    placeholder.hidden = true;
+
+    saveCameraHost(cameraHost);
+
+    setCameraState(
+      "CONNECTED",
+      "ESP32 MJPEG stream connected."
+    );
+
     setCameraButtons();
-  }, CAMERA_CONNECT_TIMEOUT_MS);
+
+    console.log("[CAMERA] MJPEG preview started");
+  }, 1200);
 }
 
 function disconnectCamera() {
