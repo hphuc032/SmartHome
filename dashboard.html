@@ -2,15 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smart Home Dashboard</title>
   <link rel="stylesheet" href="style.css" />
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet"/>
-
-  <!-- ── CSS bổ sung cho phần Auth trên header ── -->
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap" rel="stylesheet" />
   <style>
-    /* Vùng hiển thị user + nút logout, thêm vào header-right */
     .user-info {
       display: flex;
       align-items: center;
@@ -19,12 +15,12 @@
     }
 
     .user-email {
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      color: var(--text-secondary);
-      letter-spacing: 0.06em;
       max-width: 180px;
       overflow: hidden;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -34,15 +30,15 @@
       align-items: center;
       gap: 6px;
       padding: 6px 14px;
-      background: rgba(255,23,68,0.08);
       border: 1px solid rgba(255,23,68,0.3);
       border-radius: 20px;
+      background: rgba(255,23,68,0.08);
       color: #ff1744;
+      cursor: pointer;
       font-family: var(--font-display);
       font-size: 0.78rem;
       font-weight: 700;
       letter-spacing: 0.12em;
-      cursor: pointer;
       transition: all 0.2s ease;
       white-space: nowrap;
     }
@@ -53,25 +49,14 @@
       transform: translateY(-1px);
     }
 
-    .btn-logout:active {
-      transform: translateY(0);
-    }
+    .btn-logout:active { transform: translateY(0); }
 
-    /* Ẩn dashboard content cho đến khi auth được xác nhận */
-    /* (tránh flash nội dung trước khi kiểm tra auth xong) */
-    body {
-      visibility: hidden;
-    }
-    body.auth-ready {
-      visibility: visible;
-    }
+    /* Avoid showing protected dashboard content before auth is confirmed. */
+    body { visibility: hidden; }
+    body.auth-ready { visibility: visible; }
   </style>
 </head>
 <body>
-
-  <!-- ════════════════════════════════
-       HEADER — Đã bổ sung user info + logout
-  ════════════════════════════════ -->
   <header class="site-header">
     <div class="header-left">
       <div class="logo-icon">⌂</div>
@@ -80,155 +65,150 @@
         <span class="title-sub">CONTROL DASHBOARD</span>
       </div>
     </div>
-    <div class="header-right">
 
-      <!-- ── MỚI: Vùng user + logout ── -->
+    <div class="header-right">
       <div class="user-info">
         <span class="user-email" id="userEmail">--</span>
-        <button class="btn-logout" id="btnLogout" onclick="handleLogout()">
-          ⏻ LOGOUT
-        </button>
+        <button class="btn-logout" id="btnLogout" onclick="handleLogout()">⏻ LOGOUT</button>
       </div>
 
-      <!-- Các phần cũ giữ nguyên -->
-      <div class="status-badge" id="connectionBadge">
-        <span class="badge-dot"></span>
-        <span class="badge-text">ONLINE</span>
+      <div class="connection-group" aria-label="Connection status">
+        <div class="status-badge checking" id="firebaseConnectionBadge">
+          <span class="badge-dot"></span>
+          <span class="badge-text">FIREBASE: CHECKING</span>
+        </div>
+        <div class="status-badge checking" id="deviceConnectionBadge">
+          <span class="badge-dot"></span>
+          <span class="badge-text">DEVICE: CHECKING</span>
+        </div>
       </div>
+
       <div class="last-updated">
-        <span class="update-label">LAST UPDATE</span>
+        <span class="update-label">LAST STATE UPDATE</span>
         <span class="update-time" id="lastUpdated">--:--:--</span>
       </div>
-
     </div>
   </header>
 
-  <!-- ════════════════════════════════
-       SYSTEM ALERT BANNER — không thay đổi
-  ════════════════════════════════ -->
-  <div class="alert-banner" id="alertBanner">
-    <span class="alert-icon" id="alertIcon">✔</span>
-    <span class="alert-text" id="alertText">SYSTEM SAFE — ALL SENSORS NORMAL</span>
+  <div class="alert-banner neutral" id="alertBanner">
+    <span class="alert-icon" id="alertIcon">…</span>
+    <span class="alert-text" id="alertText">WAITING FOR SENSOR STATE</span>
   </div>
 
-  <!-- ════════════════════════════════
-       MAIN DASHBOARD GRID — không thay đổi
-  ════════════════════════════════ -->
-  <main class="dashboard-grid">
+  <section class="global-mode-bar" aria-label="All device modes">
+    <span class="global-mode-label">ALL DEVICE MODES</span>
+    <div class="global-mode-controls" data-control-group="allModes">
+      <button class="btn btn--orange" onclick="sendAllDeviceModesCommand('AUTO', this)">AUTO</button>
+      <button class="btn btn--blue" onclick="sendAllDeviceModesCommand('MANUAL', this)">MANUAL</button>
+    </div>
+    <div class="command-feedback" id="allModesFeedback" role="status" aria-live="polite">READY</div>
+  </section>
 
-    <!-- ── TEMPERATURE CARD ── -->
+  <main class="dashboard-grid">
     <div class="card card--temperature" id="cardTemperature">
       <div class="card-header">
         <div class="card-icon">🌡</div>
-        <div class="card-label">TEMPERATURE</div>
+        <div class="card-label">TEMPERATURE + HUMIDITY</div>
       </div>
-      <div class="card-value" id="tempValue">--°C</div>
-      <div class="card-sub" id="tempSub">Reading sensor...</div>
-      <div class="card-ring">
+      <div class="environment-values">
+        <div>
+          <span class="sensor-label">TEMPERATURE</span>
+          <div class="card-value" id="tempValue">--°C</div>
+        </div>
+        <div>
+          <span class="sensor-label">HUMIDITY</span>
+          <div class="card-value card-value--secondary" id="humidityValue">--%</div>
+        </div>
+      </div>
+      <div class="card-sub" id="tempSub">Waiting for sensor data...</div>
+      <div class="sensor-health" id="dhtStatus">DHT: UNKNOWN</div>
+      <div class="card-ring" aria-hidden="true">
         <svg viewBox="0 0 80 80" class="ring-svg">
-          <circle cx="40" cy="40" r="34" class="ring-bg"/>
-          <circle cx="40" cy="40" r="34" class="ring-fill" id="tempRing"/>
+          <circle cx="40" cy="40" r="34" class="ring-bg" />
+          <circle cx="40" cy="40" r="34" class="ring-fill" id="tempRing" />
         </svg>
       </div>
     </div>
 
-    <!-- ── DOOR CARD ── -->
     <div class="card card--door" id="cardDoor">
       <div class="card-header">
         <div class="card-icon" id="doorIcon">🚪</div>
         <div class="card-label">SMART DOOR</div>
       </div>
-      <div class="card-status-pill" id="doorStatus">-- --</div>
-      <div class="card-controls">
-        <button class="btn btn--green" onclick="sendDoorCommand('OPEN')">
-          <span>🔓</span> OPEN
-        </button>
-        <button class="btn btn--red" onclick="sendDoorCommand('CLOSE')">
-          <span>🔒</span> CLOSE
-        </button>
+      <div class="card-status-pill status-unknown" id="doorStatus">DOOR UNKNOWN</div>
+      <div class="card-controls" data-control-group="door">
+        <button class="btn btn--green" onclick="sendDoorCommand('OPEN', this)"><span>🔓</span> OPEN</button>
+        <button class="btn btn--red" onclick="sendDoorCommand('CLOSE', this)"><span>🔒</span> CLOSE</button>
       </div>
+      <div class="command-feedback" id="doorFeedback" role="status" aria-live="polite">READY</div>
     </div>
 
-    <!-- ── LIGHT CARD ── -->
     <div class="card card--light" id="cardLight">
       <div class="card-header">
         <div class="card-icon" id="lightIcon">💡</div>
         <div class="card-label">SMART LIGHT</div>
       </div>
-      <div class="card-status-pill" id="lightStatus">-- --</div>
-      <div class="card-mode" id="lightMode">MODE: --</div>
-      <div class="card-controls">
-        <button class="btn btn--green" onclick="sendLightCommand(true)">ON</button>
-        <button class="btn btn--dimmed" onclick="sendLightCommand(false)">OFF</button>
+      <div class="card-status-pill status-unknown" id="lightStatus">LIGHT UNKNOWN</div>
+      <div class="card-mode" id="lightMode">MODE: UNKNOWN</div>
+      <div class="sensor-raw">LDR: <span id="ldrValue">N/A</span></div>
+      <div class="card-controls" data-control-group="light">
+        <button class="btn btn--green" data-manual-control onclick="sendLightCommand(true, this)">ON</button>
+        <button class="btn btn--dimmed" data-manual-control onclick="sendLightCommand(false, this)">OFF</button>
+        <button class="btn btn--orange" onclick="sendLightModeCommand('AUTO', this)">AUTO</button>
+        <button class="btn btn--blue" onclick="sendLightModeCommand('MANUAL', this)">MANUAL</button>
       </div>
-      <div class="card-controls card-controls--mode">
-        <button class="btn btn--orange" onclick="sendLightModeCommand('AUTO')">AUTO</button>
-        <button class="btn btn--blue" onclick="sendLightModeCommand('MANUAL')">MANUAL</button>
-      </div>
+      <div class="mode-note" id="lightModeNote">AUTO uses LDR threshold 1800.</div>
+      <div class="command-feedback" id="lightFeedback" role="status" aria-live="polite">READY</div>
     </div>
 
-    <!-- ── FAN CARD ── -->
     <div class="card card--fan" id="cardFan">
       <div class="card-header">
         <div class="card-icon" id="fanIcon">🌀</div>
         <div class="card-label">SMART FAN</div>
       </div>
-      <div class="card-status-pill" id="fanStatus">-- --</div>
-      <div class="card-mode" id="fanMode">MODE: --</div>
-      <div class="card-controls">
-        <button class="btn btn--green" onclick="sendFanCommand(true)">ON</button>
-        <button class="btn btn--dimmed" onclick="sendFanCommand(false)">OFF</button>
+      <div class="card-status-pill status-unknown" id="fanStatus">FAN UNKNOWN</div>
+      <div class="card-mode" id="fanMode">MODE: UNKNOWN</div>
+      <div class="card-controls" data-control-group="fan">
+        <button class="btn btn--green" data-manual-control onclick="sendFanCommand(true, this)">ON</button>
+        <button class="btn btn--dimmed" data-manual-control onclick="sendFanCommand(false, this)">OFF</button>
+        <button class="btn btn--orange" onclick="sendFanModeCommand('AUTO', this)">AUTO</button>
+        <button class="btn btn--blue" onclick="sendFanModeCommand('MANUAL', this)">MANUAL</button>
       </div>
-      <div class="card-controls card-controls--mode">
-        <button class="btn btn--orange" onclick="sendFanModeCommand('AUTO')">AUTO</button>
-        <button class="btn btn--blue" onclick="sendFanModeCommand('MANUAL')">MANUAL</button>
-      </div>
+      <div class="mode-note" id="fanModeNote">AUTO turns on at 35°C or above.</div>
+      <div class="command-feedback" id="fanFeedback" role="status" aria-live="polite">READY</div>
     </div>
 
-    <!-- ── CLOTHES RACK CARD ── -->
-    <div class="card card--rack" id="cardRack">
+    <div class="card card--curtain" id="cardCurtain">
       <div class="card-header">
-        <div class="card-icon" id="rackIcon">👕</div>
-        <div class="card-label">CLOTHES RACK</div>
+        <div class="card-icon" id="curtainIcon">🪟</div>
+        <div class="card-label">SMART CURTAIN</div>
       </div>
-      <div class="card-status-pill" id="rackStatus">-- --</div>
-      <div class="card-mode" id="rackMode">MODE: --</div>
-      <div class="rain-indicator" id="rainIndicator">
-        <span id="rainIcon">🌤</span>
-        <span id="rainText">DRY</span>
+      <div class="card-status-pill status-unknown" id="curtainStatus">CURTAIN UNKNOWN</div>
+      <div class="card-mode" id="curtainMode">MODE: UNKNOWN</div>
+      <div class="card-controls" data-control-group="curtain">
+        <button class="btn btn--green" data-manual-control onclick="sendCurtainCommand('OPEN', this)">OPEN</button>
+        <button class="btn btn--dimmed" data-manual-control onclick="sendCurtainCommand('CLOSE', this)">CLOSE</button>
+        <button class="btn btn--orange" onclick="sendCurtainModeCommand('AUTO', this)">AUTO</button>
+        <button class="btn btn--blue" onclick="sendCurtainModeCommand('MANUAL', this)">MANUAL</button>
       </div>
-      <div class="card-controls">
-        <button class="btn btn--blue" onclick="sendRackCommand('IN')">
-          <span>⬅</span> PULL IN
-        </button>
-        <button class="btn btn--orange" onclick="sendRackCommand('OUT')">
-          PULL OUT <span>➡</span>
-        </button>
-      </div>
-      <div class="card-controls card-controls--mode">
-        <button class="btn btn--orange" onclick="sendRackModeCommand('AUTO')">AUTO</button>
-        <button class="btn btn--blue" onclick="sendRackModeCommand('MANUAL')">MANUAL</button>
-      </div>
+      <div class="mode-note">AUTO mode currently keeps the current curtain position.</div>
+      <div class="command-feedback" id="curtainFeedback" role="status" aria-live="polite">READY</div>
     </div>
 
-    <!-- ── GAS ALERT CARD ── -->
     <div class="card card--gas" id="cardGas">
       <div class="card-header">
         <div class="card-icon" id="gasIcon">⚠</div>
         <div class="card-label">GAS SENSOR</div>
       </div>
-      <div class="card-status-pill" id="gasStatus">-- CHECKING --</div>
-      <div class="gas-warning" id="gasWarning" style="display:none;">
+      <div class="card-status-pill status-unknown" id="gasStatus">GAS: N/A</div>
+      <div class="sensor-raw">MQ2 RAW: <span id="mq2Value">N/A</span></div>
+      <div class="gas-warning" id="gasWarning" hidden>
         <div class="gas-warning-text">⚠ GAS LEAK DETECTED ⚠</div>
         <div class="gas-warning-sub">VENTILATE IMMEDIATELY</div>
       </div>
     </div>
-
   </main>
 
-  <!-- ════════════════════════════════
-       FOOTER — không thay đổi
-  ════════════════════════════════ -->
   <footer class="site-footer">
     <span>Smart Home IoT Project</span>
     <span class="footer-sep">·</span>
@@ -237,22 +217,11 @@
     <span id="footerYear"></span>
   </footer>
 
-  <!-- ════════════════════════════════
-       FIREBASE SDKs
-       Thứ tự quan trọng: app → auth → database → config → auth.js → script.js
-  ════════════════════════════════ -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
-  <!-- Config dùng chung (thay thế firebaseConfig cũ ở đầu script.js) -->
   <script src="firebase-config.js"></script>
-
-  <!-- Auth: kiểm tra phiên, login/logout -->
   <script src="auth.js"></script>
-
-  <!-- Dashboard logic: Realtime Database, render, control -->
   <script src="script.js"></script>
-
 </body>
 </html>

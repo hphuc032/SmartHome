@@ -114,6 +114,13 @@ body {
   flex-wrap: wrap;
 }
 
+.connection-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 /* Online/Offline badge */
 .status-badge {
   display: flex;
@@ -136,6 +143,12 @@ body {
   color: var(--danger-color);
 }
 
+.status-badge.checking {
+  background: rgba(255,145,0,0.08);
+  border-color: rgba(255,145,0,0.3);
+  color: var(--warn-color);
+}
+
 .badge-dot {
   width: 8px;
   height: 8px;
@@ -149,6 +162,11 @@ body {
   background: var(--danger-color);
   box-shadow: 0 0 8px var(--danger-color);
   animation: none;
+}
+
+.status-badge.checking .badge-dot {
+  background: var(--warn-color);
+  box-shadow: 0 0 8px var(--warn-color);
 }
 
 @keyframes pulse {
@@ -201,6 +219,12 @@ body {
   animation: dangerFlash 1.2s ease-in-out infinite alternate;
 }
 
+.alert-banner.neutral {
+  background: rgba(139,170,200,0.07);
+  border-bottom-color: rgba(139,170,200,0.2);
+  color: var(--text-secondary);
+}
+
 @keyframes dangerFlash {
   from { background: rgba(255,23,68,0.08); }
   to   { background: rgba(255,23,68,0.20); }
@@ -208,6 +232,34 @@ body {
 
 .alert-icon {
   font-size: 1.1rem;
+}
+
+/* ══════════════════════════════════
+   GLOBAL MODE CONTROL
+══════════════════════════════════ */
+.global-mode-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 24px 0;
+  flex-wrap: wrap;
+}
+
+.global-mode-label {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+}
+
+.global-mode-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.global-mode-controls .btn {
+  min-width: 92px;
 }
 
 /* ══════════════════════════════════
@@ -312,6 +364,12 @@ body {
   animation: dangerFlash 1s infinite alternate;
 }
 
+.card-status-pill.status-unknown {
+  background: rgba(139,170,200,0.08);
+  border-color: rgba(139,170,200,0.2);
+  color: var(--text-secondary);
+}
+
 /* ── Mode Label ── */
 .card-mode {
   font-family: var(--font-mono);
@@ -332,6 +390,42 @@ body {
 .card-controls--mode {
   margin-top: 8px;
 }
+
+.mode-note,
+.sensor-raw,
+.sensor-health,
+.command-feedback {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+}
+
+.mode-note {
+  min-height: 2.2em;
+  margin-top: 10px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.sensor-raw {
+  margin: -4px 0 12px;
+  color: var(--text-secondary);
+}
+
+.sensor-raw span {
+  color: var(--accent-cyan);
+}
+
+.command-feedback {
+  min-height: 1em;
+  margin-top: 11px;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+}
+
+.command-feedback--pending { color: var(--accent-orange); }
+.command-feedback--success { color: var(--safe-color); }
+.command-feedback--error { color: var(--danger-color); }
 
 /* ══════════════════════════════════
    BUTTONS
@@ -381,6 +475,14 @@ body {
 
 .btn:active {
   transform: translateY(0px) scale(0.97);
+}
+
+.btn:disabled,
+.btn:disabled:hover {
+  cursor: not-allowed;
+  filter: grayscale(0.45);
+  opacity: 0.45;
+  transform: none;
 }
 
 .btn--green {
@@ -449,6 +551,22 @@ body {
   background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
 }
 
+.environment-values {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  padding-right: 54px;
+}
+
+.sensor-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+}
+
 .card-value {
   font-family: var(--font-mono);
   font-size: 2.8rem;
@@ -459,11 +577,35 @@ body {
   line-height: 1;
 }
 
+.card-value--secondary {
+  color: var(--accent-blue);
+  font-size: 2rem;
+  text-shadow: 0 0 20px rgba(26,140,255,0.35);
+}
+
 .card-sub {
   font-family: var(--font-body);
   font-size: 0.75rem;
   color: var(--text-muted);
   margin-bottom: 12px;
+}
+
+.sensor-health {
+  display: inline-block;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-secondary);
+}
+
+.sensor-health--error {
+  border-color: rgba(255,23,68,0.45);
+  background: rgba(255,23,68,0.1);
+  color: var(--danger-color);
+}
+
+.card--temperature.sensor-error {
+  border-color: rgba(255,23,68,0.45);
 }
 
 /* SVG Ring */
@@ -495,32 +637,6 @@ body {
 }
 
 /* ══════════════════════════════════
-   RAIN INDICATOR
-══════════════════════════════════ */
-.rain-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.1em;
-  background: rgba(26,140,255,0.08);
-  border: 1px solid rgba(26,140,255,0.2);
-  color: var(--text-secondary);
-  margin-bottom: 14px;
-  transition: all 0.4s;
-}
-
-.rain-indicator.raining {
-  background: rgba(0,212,255,0.1);
-  border-color: rgba(0,212,255,0.3);
-  color: var(--accent-cyan);
-  box-shadow: 0 0 10px rgba(0,212,255,0.1);
-}
-
-/* ══════════════════════════════════
    GAS WARNING CARD
 ══════════════════════════════════ */
 .card--gas {
@@ -546,6 +662,10 @@ body {
   border-radius: 8px;
   text-align: center;
   animation: dangerFlash 0.9s infinite alternate;
+}
+
+.gas-warning[hidden] {
+  display: none;
 }
 
 .gas-warning-text {
@@ -604,6 +724,10 @@ body {
   .card-value {
     font-size: 2.2rem;
   }
+
+  .card-value--secondary {
+    font-size: 1.7rem;
+  }
 }
 
 @media (max-width: 500px) {
@@ -615,8 +739,21 @@ body {
     gap: 10px;
   }
 
+  .connection-group {
+    width: 100%;
+  }
+
+  .status-badge {
+    flex: 1;
+    justify-content: center;
+  }
+
   .last-updated {
     display: none;
+  }
+
+  .environment-values {
+    padding-right: 38px;
   }
 }
 
