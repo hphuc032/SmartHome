@@ -10,6 +10,13 @@ const INFERENCE_INTERVAL_MS = 160;
 const CAPTURE_TIMEOUT_MS = 4500;
 const CAMERA_CONNECT_TIMEOUT_MS = 10000;
 const MAX_CAPTURE_FAILURES = 3;
+const MEDIAPIPE_VERSION = "1.0.1";
+const MEDIAPIPE_MODULE_URL =
+  `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MEDIAPIPE_VERSION}/vision_bundle.mjs`;
+const MEDIAPIPE_WASM_URL =
+  `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MEDIAPIPE_VERSION}/wasm`;
+const GESTURE_MODEL_URL =
+  "https://storage.googleapis.com/mediapipe-tasks/gesture_recognizer/gesture_recognizer.task";
 
 const GESTURE_ACTIONS = Object.freeze({
   Open_Palm: { key: "doorCommand", value: "OPEN", label: "OPEN DOOR" },
@@ -18,6 +25,8 @@ const GESTURE_ACTIONS = Object.freeze({
   Thumb_Down: { key: "lightBrightness", value: 0, label: "LIGHT OFF" },
   Victory: { key: "fanLevel", value: 1, label: "FAN ON" },
   Pointing_Up: { key: "fanLevel", value: 0, label: "FAN OFF" },
+  Three_Fingers: { key: "curtainPosition", value: 100, label: "OPEN CURTAIN" },
+  Pinch: { key: "curtainPosition", value: 0, label: "CLOSE CURTAIN" },
 });
 
 const preview = document.getElementById("espCameraPreview");
@@ -36,11 +45,9 @@ let cameraConnecting = false;
 let cameraConnectAttempt = 0;
 let cameraConnectTimer = null;
 
-let gestureWorker = null;
-let gestureWorkerReadyPromise = null;
-let gestureWorkerReadyResolve = null;
-let gestureWorkerReadyReject = null;
-let recognitionRequestId = 0;
+let gestureRecognizer = null;
+let gestureRecognizerPromise = null;
+let pageUnloading = false;
 let gestureEnabled = false;
 let gestureLoopGeneration = 0;
 let captureController = null;
@@ -51,7 +58,8 @@ let candidateSince = 0;
 let cooldownUntil = 0;
 let commandInProgress = false;
 let lockedGesture = "";
-const pendingRecognitionRequests = new Map();
+let threeFingersVisible = false;
+let pinchVisible = false;
 
 function normalizeCameraHost(rawHost) {
   const trimmed = rawHost.trim();
@@ -258,86 +266,65 @@ preview.addEventListener("error", () => {
 });
 
 async function initializeGestureRecognizer() {
-  if (gestureWorkerReadyPromise) return gestureWorkerReadyPromise;
+  if (gestureRecognizer) return gestureRecognizer;
+  if (gestureRecognizerPromise) return gestureRecognizerPromise;
 
-  gestureWorker = new Worker("gesture-worker.js", { type: "module" });
-  gestureWorkerReadyPromise = new Promise((resolve, reject) => {
-    gestureWorkerReadyResolve = resolve;
-    gestureWorkerReadyReject = reject;
-  });
+  gestureRecognizerPromise = (async () => {
+    console.log("[GESTURE] Loading MediaPipe module...");
+    const { FilesetResolver, GestureRecognizer } = await import(MEDIAPIPE_MODULE_URL);
+    if (!FilesetResolver || !GestureRecognizer) {
+      throw new Error("MediaPipe module is missing FilesetResolver/GestureRecognizer.");
+    }
 
-  gestureWorker.addEventListener("message", handleGestureWorkerMessage);
-  gestureWorker.addEventListener("error", (event) => {
-    const error = new Error(event.message || "Gesture worker failed to load.");
-    error.source = "gesture";
-    gestureWorkerReadyReject?.(error);
-    rejectPendingRecognitionRequests(error);
-    gestureWorkerReadyPromise = null;
-    gestureWorkerReadyResolve = null;
-    gestureWorkerReadyReject = null;
-    gestureWorker?.terminate();
-    gestureWorker = null;
-    if (gestureEnabled) stopGestureWithError(error.message);
-  });
-  gestureWorker.postMessage({ type: "INITIALIZE" });
-  return gestureWorkerReadyPromise;
-}
+    console.log("[GESTURE] Loading MediaPipe WASM...");
+    const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_URL);
 
-function handleGestureWorkerMessage(event) {
-  const { type, requestId, result, error } = event.data;
+    console.log("[GESTURE] Loading gesture model...");
+    const recognizer = await GestureRecognizer.createFromOptions(vision, {
+      baseOptions: {
+        modelAssetPath: GESTURE_MODEL_URL,
+        delegate: "CPU",
+      },
+      runningMode: "IMAGE",
+      numHands: 1,
+      minHandDetectionConfidence: 0.5,
+      minHandPresenceConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+      cannedGesturesClassifierOptions: {
+        scoreThreshold: MIN_CONFIDENCE,
+        maxResults: 1,
+      },
+    });
 
-  if (type === "READY") {
-    gestureWorkerReadyResolve?.(true);
-    gestureWorkerReadyResolve = null;
-    gestureWorkerReadyReject = null;
-    return;
-  }
-  if (type === "INITIALIZE_ERROR") {
-    gestureWorkerReadyReject?.(new Error(error));
-    gestureWorkerReadyPromise = null;
-    gestureWorkerReadyResolve = null;
-    gestureWorkerReadyReject = null;
-    gestureWorker?.terminate();
-    gestureWorker = null;
-    return;
-  }
+    // Initialization may finish after the page has started unloading.
+    if (pageUnloading) {
+      recognizer.close?.();
+      throw new Error("Page unloading.");
+    }
+    gestureRecognizer = recognizer;
+    console.log("[GESTURE] GestureRecognizer READY");
+    return gestureRecognizer;
+  })();
 
-  const pending = pendingRecognitionRequests.get(requestId);
-  if (!pending) return;
-  pendingRecognitionRequests.delete(requestId);
-
-  if (type === "RECOGNIZE_RESULT") {
-    pending.resolve(result);
-  } else {
-    const recognitionError = new Error(error || "Gesture recognition failed.");
-    recognitionError.source = "gesture";
-    pending.reject(recognitionError);
+  try {
+    return await gestureRecognizerPromise;
+  } catch (error) {
+    gestureRecognizerPromise = null;
+    throw error;
   }
 }
 
 function recognizeFrame(bitmap) {
-  if (!gestureWorker) {
-    bitmap.close?.();
-    return Promise.reject(new Error("Gesture worker is unavailable."));
-  }
-
-  const requestId = ++recognitionRequestId;
-  const resultPromise = new Promise((resolve, reject) => {
-    pendingRecognitionRequests.set(requestId, { resolve, reject });
-  });
   try {
-    gestureWorker.postMessage({ type: "RECOGNIZE", requestId, bitmap }, [bitmap]);
+    if (!gestureRecognizer) throw new Error("Gesture recognizer is unavailable.");
+    return gestureRecognizer.recognize(bitmap);
   } catch (error) {
-    pendingRecognitionRequests.delete(requestId);
-    bitmap.close?.();
-    return Promise.reject(error);
+    const recognitionError = new Error(error?.message || String(error));
+    recognitionError.source = "gesture";
+    throw recognitionError;
+  } finally {
+    bitmap.close();
   }
-  return resultPromise;
-}
-
-function rejectPendingRecognitionRequests(error) {
-  pendingRecognitionRequests.forEach(({ reject }) => reject(error));
-  pendingRecognitionRequests.clear();
 }
 
 async function enableGesture() {
@@ -370,6 +357,7 @@ async function enableGesture() {
     setCameraState("CONNECTED", "Gesture recognizer ready. Frames are processed locally in your browser.");
     void runGestureLoop(generation);
   } catch (error) {
+    if (!gestureEnabled || generation !== gestureLoopGeneration) return;
     console.error("[GESTURE] model loading failed", error);
     stopGestureWithError("MediaPipe model loading failed. Check internet access and CDN availability.");
   }
@@ -383,7 +371,6 @@ function disableGesture() {
     captureController.abort();
     captureController = null;
   }
-  rejectPendingRecognitionRequests(new Error("Gesture recognition disabled."));
 
   resetGestureTracking();
   setGestureReadout();
@@ -393,6 +380,8 @@ function disableGesture() {
 }
 
 function resetGestureTracking() {
+  threeFingersVisible = false;
+  pinchVisible = false;
   candidateGesture = "";
   candidateSince = 0;
   if (!commandInProgress) {
@@ -447,9 +436,9 @@ async function runGestureLoop(generation) {
         return;
       }
 
-      const recognitionPromise = recognizeFrame(frame);
+      const bitmap = frame;
       frame = null;
-      const result = await recognitionPromise;
+      const result = recognizeFrame(bitmap);
       captureFailureCount = 0;
 
       if (!cameraConnected) {
@@ -504,12 +493,108 @@ function cameraCaptureErrorMessage(error) {
   return error.message || "Camera capture failed.";
 }
 
+// Front-facing hand heuristic. Distances are palm-relative; angles and distances
+// do not depend on left/right handedness, mirroring or in-plane hand rotation.
+function detectThreeFingers(landmarks) {
+  if (!Array.isArray(landmarks) || landmarks.length !== 21 ||
+      !landmarks.every((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y))) {
+    return false;
+  }
+
+  const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const angle = (a, joint, b) => {
+    const length = distance(a, joint) * distance(b, joint);
+    if (length < 1e-10) return 0;
+    const cosine = ((a.x - joint.x) * (b.x - joint.x) +
+      (a.y - joint.y) * (b.y - joint.y)) / length;
+    return Math.acos(Math.max(-1, Math.min(1, cosine))) * 180 / Math.PI;
+  };
+  const wrist = landmarks[0];
+  const palmSize = distance(wrist, landmarks[9]);
+  const palmWidth = distance(landmarks[5], landmarks[17]);
+  // Reject collapsed/strongly edge-on observations instead of guessing.
+  if (palmSize < 1e-6 || palmWidth < palmSize * 0.35) return false;
+
+  const extended = (mcp, pip, dip, tip) =>
+    angle(landmarks[mcp], landmarks[pip], landmarks[dip]) >= 160 &&
+    angle(landmarks[pip], landmarks[dip], landmarks[tip]) >= 150 &&
+    distance(landmarks[tip], wrist) > distance(landmarks[pip], wrist) + palmSize * 0.18 &&
+    distance(landmarks[tip], landmarks[mcp]) >
+      distance(landmarks[pip], landmarks[mcp]) * 1.5;
+
+  if (!extended(5, 6, 7, 8) || !extended(9, 10, 11, 12) ||
+      !extended(13, 14, 15, 16)) return false;
+
+  const pinkyFolded = angle(landmarks[17], landmarks[18], landmarks[19]) < 140 &&
+    distance(landmarks[20], wrist) < distance(landmarks[18], wrist) + palmSize * 0.05 &&
+    distance(landmarks[20], landmarks[17]) < palmSize * 0.65;
+
+  const palmCenter = {
+    x: (wrist.x + landmarks[5].x + landmarks[9].x + landmarks[17].x) / 4,
+    y: (wrist.y + landmarks[5].y + landmarks[9].y + landmarks[17].y) / 4,
+  };
+  const thumbFolded = angle(landmarks[2], landmarks[3], landmarks[4]) < 155 &&
+    distance(landmarks[4], palmCenter) < palmSize * 0.75 &&
+    distance(landmarks[4], landmarks[5]) < palmSize * 0.65;
+
+  return pinkyFolded && thumbFolded;
+}
+
+// Image-space Euclidean distance, relative to wrist -> middle MCP length.
+// No pixel threshold or left/right handedness dependency.
+function pinchDistanceRatio(landmarks) {
+  if (!Array.isArray(landmarks) || landmarks.length !== 21 ||
+      !landmarks.every((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y))) return Infinity;
+  const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const size = distance(landmarks[0], landmarks[9]);
+  if (size < 1e-6 || distance(landmarks[5], landmarks[17]) < size * 0.35) return Infinity;
+  return distance(landmarks[4], landmarks[8]) / size;
+}
+
+function detectPinch(landmarks) {
+  if (pinchDistanceRatio(landmarks) >= 0.25) return false;
+  const wrist = landmarks[0];
+  const palm = landmarks[9];
+  const dx = palm.x - wrist.x;
+  const dy = palm.y - wrist.y;
+  // A fist can also bring tips close together. Require both tips to remain
+  // outside the palm, beyond the index MCP along the palm's own axis.
+  return [4, 8].every((id) =>
+    ((landmarks[id].x - landmarks[5].x) * dx +
+     (landmarks[id].y - landmarks[5].y) * dy) / (dx * dx + dy * dy) > 0.1);
+}
+
 async function processGestureResult(result, generation) {
+  const isThreeFingers = detectThreeFingers(result.landmarks?.[0]);
+  const isPinch = !isThreeFingers && detectPinch(result.landmarks?.[0]);
+  if (isPinch && !pinchVisible) {
+    console.info("[GESTURE CUSTOM] Pinch detected");
+  }
+  pinchVisible = isPinch;
+  if (isThreeFingers && !threeFingersVisible) {
+    console.info("[GESTURE CUSTOM] Three_Fingers detected");
+  }
+  threeFingersVisible = isThreeFingers;
   const topGesture = result.gestures?.[0]?.[0];
-  const name = topGesture?.categoryName || "";
-  const score = Number(topGesture?.score || 0);
+  const name = isThreeFingers ? "Three_Fingers" : isPinch
+    ? "Pinch" : topGesture?.categoryName || "";
+  const score = isThreeFingers || isPinch ? 1.0 : Number(topGesture?.score || 0);
   const action = GESTURE_ACTIONS[name];
   const now = Date.now();
+
+  // Release by separating the tips (or removing the hand). A wider release
+  // threshold prevents small landmark jitter from rearming a held pinch.
+  if (lockedGesture === "Pinch") {
+    if (pinchDistanceRatio(result.landmarks?.[0]) < 0.35) {
+      setGestureReadout(name || "NONE", action ? score : null, action?.label || "NONE");
+      if (!commandInProgress) {
+        setGestureState("COOLDOWN");
+        if (now >= cooldownUntil) setCommandStatus("RELEASE PINCH TO REARM");
+      }
+      return;
+    }
+    lockedGesture = "";
+  }
 
   if (!action || name === "None" || score < MIN_CONFIDENCE) {
     candidateGesture = "";
@@ -605,7 +690,6 @@ function stopGestureWithError(message, cameraError = false) {
   gestureLoopGeneration += 1;
   candidateGesture = "";
   candidateSince = 0;
-  rejectPendingRecognitionRequests(new Error(message));
   setGestureState("ERROR");
   setCommandStatus("ERROR");
   if (cameraError) {
@@ -634,8 +718,10 @@ hostInput.value = readSavedCameraHost();
 setCameraButtons();
 
 window.addEventListener("beforeunload", () => {
+  pageUnloading = true;
   gestureEnabled = false;
+  gestureLoopGeneration += 1;
   captureController?.abort();
-  rejectPendingRecognitionRequests(new Error("Page unloading."));
-  gestureWorker?.terminate();
+  gestureRecognizer?.close?.();
+  gestureRecognizer = null;
 });
