@@ -1,0 +1,11 @@
+# Arduino build artifacts
+smarthome.ino/
+
+# Local firmware files containing credentials
+smarthome/smarthome.ino
+smarthome/camera_source.txt
+
+# Common temporary files
+*.log
+.DS_Store
+Thumbs.db
