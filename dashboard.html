@@ -207,6 +207,78 @@
         <div class="gas-warning-sub">VENTILATE IMMEDIATELY</div>
       </div>
     </div>
+
+    <section class="card card--camera" id="cardCamera" aria-labelledby="cameraCardTitle">
+      <div class="card-header camera-card-header">
+        <div class="card-icon">📷</div>
+        <div class="card-label" id="cameraCardTitle">CAMERA &amp; GESTURE CONTROL</div>
+        <div class="camera-state-badges">
+          <span class="camera-state camera-state--disconnected" id="cameraState">CAMERA: DISCONNECTED</span>
+          <span class="camera-state camera-state--disabled" id="gestureState">GESTURE: DISABLED</span>
+        </div>
+      </div>
+
+      <div class="camera-layout">
+        <div class="camera-preview-shell">
+          <img id="espCameraPreview" alt="ESP32 camera preview" />
+          <div class="camera-placeholder" id="cameraPlaceholder">
+            <span>📡</span>
+            <strong>CAMERA DISCONNECTED</strong>
+            <small>Enter the ESP32 camera host and connect.</small>
+          </div>
+        </div>
+
+        <div class="camera-panel">
+          <label class="camera-input-label" for="cameraHostInput">ESP32 CAMERA HOST</label>
+          <div class="camera-host-row">
+            <input
+              class="camera-host-input"
+              id="cameraHostInput"
+              type="text"
+              inputmode="url"
+              placeholder="192.168.1.96"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button class="btn btn--blue" id="connectCameraButton" type="button">CONNECT</button>
+            <button class="btn btn--dimmed" id="disconnectCameraButton" type="button" disabled>DISCONNECT</button>
+          </div>
+
+          <div class="camera-message" id="cameraMessage" role="status" aria-live="polite">
+            Camera frames stay in this browser and are never uploaded.
+          </div>
+
+          <dl class="gesture-readout">
+            <div>
+              <dt>DETECTED</dt>
+              <dd id="detectedGesture">NONE</dd>
+            </div>
+            <div>
+              <dt>CONFIDENCE</dt>
+              <dd id="gestureConfidence">--%</dd>
+            </div>
+            <div>
+              <dt>ACTION</dt>
+              <dd id="gestureAction">NONE</dd>
+            </div>
+            <div>
+              <dt>COMMAND STATUS</dt>
+              <dd id="gestureCommandStatus">READY</dd>
+            </div>
+          </dl>
+
+          <label class="gesture-safety-option">
+            <input id="doorGestureSafety" type="checkbox" checked />
+            <span>Door OPEN safety hold: 1.2 seconds</span>
+          </label>
+
+          <div class="camera-actions">
+            <button class="btn btn--green" id="enableGestureButton" type="button" disabled>ENABLE GESTURE</button>
+            <button class="btn btn--red" id="disableGestureButton" type="button" disabled>DISABLE GESTURE</button>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer class="site-footer">
@@ -223,5 +295,6 @@
   <script src="firebase-config.js"></script>
   <script src="auth.js"></script>
   <script src="script.js"></script>
+  <script type="module" src="gesture.js"></script>
 </body>
 </html>

@@ -25,8 +25,6 @@ const currentModes = {
 };
 
 const pendingGroups = new Set();
-const commandContexts = new Map();
-const commandStatuses = new Map();
 const commandListeners = new Map();
 const feedbackTimers = new Map();
 
@@ -280,63 +278,37 @@ async function sendCommand(key, value) {
     createdAt: firebase.database.ServerValue.TIMESTAMP,
   });
 
-  trackCommand(commandRef, commandId);
-  return commandId;
+  return waitForCommandResult(commandRef, commandId);
 }
 
 // ── Command tracking ──────────────────────────────────────────
-function trackCommand(commandRef, commandId) {
+function waitForCommandResult(commandRef, commandId) {
   const statusRef = commandRef.child("status");
 
-  const handleStatus = (snapshot) => {
-    if (!snapshot.exists()) return;
-
-    const status = String(snapshot.val()).trim().toLowerCase();
-    commandStatuses.set(commandId, status);
-    deliverCommandStatus(commandId, status);
-
-    if (TERMINAL_COMMAND_STATUSES.has(status)) {
+  return new Promise((resolve, reject) => {
+    const stopTracking = () => {
       statusRef.off("value", handleStatus);
       commandListeners.delete(commandId);
-    }
-  };
+    };
 
-  const handleError = (error) => {
-    console.error(`Unable to track command ${commandId}:`, error);
-    commandStatuses.set(commandId, "tracking-error");
-    deliverCommandStatus(commandId, "tracking-error");
-    commandListeners.delete(commandId);
-  };
+    const handleStatus = (snapshot) => {
+      if (!snapshot.exists()) return;
 
-  commandListeners.set(commandId, { ref: statusRef, handler: handleStatus });
-  statusRef.on("value", handleStatus, handleError);
-}
+      const status = String(snapshot.val()).trim().toLowerCase();
+      if (!TERMINAL_COMMAND_STATUSES.has(status)) return;
 
-function deliverCommandStatus(commandId, status) {
-  const context = commandContexts.get(commandId);
-  if (!context) return;
+      stopTracking();
+      resolve({ commandId, status });
+    };
 
-  if (status === "pending") {
-    setCommandFeedback(context.group, "SENDING...", "pending");
-    return;
-  }
+    const handleError = (error) => {
+      stopTracking();
+      reject(new Error(`Unable to track command ${commandId}: ${error.message}`));
+    };
 
-  const messages = {
-    applied: ["APPLIED", "success"],
-    timeout: ["TIMEOUT — STM32 DID NOT ACK", "error"],
-    rejected: ["COMMAND REJECTED", "error"],
-    "tracking-error": ["STATUS TRACKING FAILED", "error"],
-  };
-
-  if (!messages[status]) return;
-
-  const [message, feedbackClass] = messages[status];
-  pendingGroups.delete(context.group);
-  restoreTriggerButton(context.button);
-  refreshControlButtons(context.group);
-  setCommandFeedback(context.group, message, feedbackClass, true);
-  commandContexts.delete(commandId);
-  commandStatuses.delete(commandId);
+    commandListeners.set(commandId, { ref: statusRef, handler: handleStatus });
+    statusRef.on("value", handleStatus, handleError);
+  });
 }
 
 async function runDeviceCommand(group, key, value, button) {
@@ -348,15 +320,21 @@ async function runDeviceCommand(group, key, value, button) {
   setCommandFeedback(group, "SENDING...", "pending");
 
   try {
-    const commandId = await sendCommand(key, value);
-    commandContexts.set(commandId, { group, button });
+    const result = await sendCommand(key, value);
+    const messages = {
+      applied: ["APPLIED", "success"],
+      timeout: ["TIMEOUT — STM32 DID NOT ACK", "error"],
+      rejected: ["COMMAND REJECTED", "error"],
+    };
+    const [message, feedbackClass] = messages[result.status];
 
-    const currentStatus = commandStatuses.get(commandId);
-    if (currentStatus) deliverCommandStatus(commandId, currentStatus);
-
-    return commandId;
+    pendingGroups.delete(group);
+    restoreTriggerButton(button);
+    refreshControlButtons(group);
+    setCommandFeedback(group, message, feedbackClass, true);
+    return result;
   } catch (error) {
-    console.error(`Unable to create ${key} command:`, error);
+    console.error(`Unable to send or track ${key} command:`, error);
     pendingGroups.delete(group);
     restoreTriggerButton(button);
     refreshControlButtons(group);
